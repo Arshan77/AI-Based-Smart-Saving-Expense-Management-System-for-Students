@@ -1,11 +1,11 @@
 from flask import Flask, render_template, request, redirect, session, flash, jsonify, url_for
-import mysql.connector
+# import mysql.connector
 import os
 from werkzeug.utils import secure_filename
 from flask_bcrypt import Bcrypt
 from datetime import datetime
 import requests
-from google import genai
+import google.generativeai as genai
 from uuid import uuid4
 
 # ============================================================
@@ -33,15 +33,15 @@ os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
 bcrypt = Bcrypt(app)
 
 # Database Connection
-db = mysql.connector.connect(
-    host="localhost",
-    user="root",
-    password="arshan4124@#A",
-    database="ai_smart_saving"
-)
+import psycopg2
+import os
 
-# Dictionary cursor allows accessing rows by column name
-cursor = db.cursor(dictionary=True)
+DATABASE_URL = os.environ.get("DATABASE_URL")
+
+conn = psycopg2.connect(DATABASE_URL)
+cursor = conn.cursor()
+
+# Dictionary cursor allows accessing rows by column nam
 
 # ============================================================
 # Home & User Registration Routes
@@ -79,7 +79,7 @@ def register():
             "INSERT INTO users (name, email, password) VALUES (%s, %s, %s)",
             (name, email, hashed_password)
         )
-        db.commit()
+        conn.commit()
 
         flash("Registration successful! Please login.", "success")
         return redirect("/login")
@@ -314,7 +314,7 @@ def add_income():
     if request.method == "POST":
         cursor.execute("INSERT INTO income (user_id, amount, source, income_date) VALUES (%s, %s, %s, %s)", 
                        (session["user_id"], request.form["amount"], request.form["source"], request.form["date"]))
-        db.commit()
+        conn.commit()
         flash("Income added successfully!", "success")
         return redirect("/dashboard")
     return render_template("add_income.html")
@@ -325,7 +325,7 @@ def add_expense():
     if request.method == "POST":
         cursor.execute("INSERT INTO expense (user_id, amount, category, expense_date) VALUES (%s, %s, %s, %s)", 
                        (session["user_id"], request.form["amount"], request.form["category"], request.form["date"]))
-        db.commit()
+        conn.commit()
         flash("Expense added successfully!", "success")
         return redirect("/dashboard")
     return render_template("add_expense.html")
@@ -336,7 +336,7 @@ def add_saving():
     if request.method == "POST":
         cursor.execute("INSERT INTO savings (user_id, amount, saving_date) VALUES (%s, %s, %s)", 
                        (session["user_id"], request.form["amount"], datetime.now().date()))
-        db.commit()
+        conn.commit()
         return redirect("/dashboard")
     return render_template("add_saving.html")
 
@@ -348,39 +348,39 @@ def add_saving():
 def delete_income(id):
     if "user_id" not in session: return redirect("/login")
     cursor.execute("DELETE FROM income WHERE id=%s AND user_id=%s", (id, session["user_id"]))
-    db.commit()
+    conn.commit()
     return redirect("/dashboard")
 
 @app.route("/delete_expense/<int:id>")
 def delete_expense(id):
     if "user_id" not in session: return redirect("/login")
     cursor.execute("DELETE FROM expense WHERE id=%s AND user_id=%s", (id, session["user_id"]))
-    db.commit()
+    conn.commit()
     return redirect("/dashboard")
 
 @app.route("/delete_saving/<int:id>")
 def delete_saving(id):
     if "user_id" not in session: return redirect("/login")
     cursor.execute("DELETE FROM savings WHERE id=%s AND user_id=%s", (id, session["user_id"]))
-    db.commit()
+    conn.commit()
     return redirect("/dashboard")
 
 @app.route("/clear_income")
 def clear_income():
     cursor.execute("DELETE FROM income WHERE user_id=%s", (session["user_id"],))
-    db.commit()
+    conn.commit()
     return redirect("/dashboard")
 
 @app.route("/clear_expense")
 def clear_expense():
     cursor.execute("DELETE FROM expense WHERE user_id=%s", (session["user_id"],))
-    db.commit()
+    conn.commit()
     return redirect("/dashboard")
 
 @app.route("/clear_savings")
 def clear_savings():
     cursor.execute("DELETE FROM savings WHERE user_id=%s", (session["user_id"],))
-    db.commit()
+    conn.commit()
     return redirect("/dashboard")
 
 # =================================================
@@ -400,7 +400,7 @@ def profile():
             cursor.execute("UPDATE users SET name=%s, profile_pic=%s WHERE id=%s", (name, filename, user_id))
         else:
             cursor.execute("UPDATE users SET name=%s WHERE id=%s", (name, user_id))
-        db.commit()
+        conn.commit()
         session["user_name"] = name
         return redirect("/dashboard")
     cursor.execute("SELECT name, profile_pic FROM users WHERE id=%s", (user_id,))
@@ -420,7 +420,7 @@ def set_budget():
             cursor.execute("UPDATE budget SET monthly_budget=%s WHERE user_id=%s AND month=%s AND year=%s", (amount, user_id, month, year))
         else:
             cursor.execute("INSERT INTO budget (user_id, monthly_budget, month, year) VALUES (%s, %s, %s, %s)", (user_id, amount, month, year))
-        db.commit()
+        conn.commit()
         return redirect("/dashboard")
     return render_template("set_budget.html")
 
