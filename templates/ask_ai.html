@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Ask AI</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <style>
+        body { overflow: hidden; background: #121212; font-family: 'Segoe UI', sans-serif; }
+
+        .chat-sidebar {
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(15px);
+            border-right: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 20px;
+        }
+
+        .history-item {
+            background: rgba(255, 255, 255, 0.05);
+            transition: 0.3s;
+            border-radius: 10px;
+            padding: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            text-decoration: none;
+            color: white;
+        }
+
+        .history-item:hover { background: rgba(255, 255, 255, 0.12); color: white; }
+        .active-chat { background: rgba(255, 255, 255, 0.18); border: 1px solid rgba(255,255,255,0.2); }
+
+        .chat-title { flex-grow: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 14px; }
+        .del-btn { color: rgba(255,255,255,0.4); cursor: pointer; transition: 0.2s; padding-left: 10px; }
+        .del-btn:hover { color: #ff4d4d; transform: scale(1.2); }
+
+        .chat-area { height: 100vh; display: flex; flex-direction: column; background: linear-gradient(135deg, #1e2a3a 0%, #111827 100%); }
+        .messages-container { flex-grow: 1; overflow-y: auto; padding: 30px; }
+
+        .chat-user { align-self: flex-end; background: rgba(255, 255, 255, 0.18); padding: 12px 18px; border-radius: 20px 20px 0 20px; margin-bottom: 15px; max-width: 70%; border: 1px solid rgba(255, 255, 255, 0.1); }
+        .chat-ai { align-self: flex-start; background: rgba(255, 255, 255, 0.08); padding: 15px 20px; border-radius: 20px 20px 20px 0; margin-bottom: 15px; max-width: 75%; white-space: pre-line; line-height: 1.6; border: 1px solid rgba(255, 255, 255, 0.05); }
+
+        .input-area { padding: 20px; background: rgba(0, 0, 0, 0.2); border-top: 1px solid rgba(255, 255, 255, 0.1); }
+        .glass-input { background: rgba(255, 255, 255, 0.1) !important; border: 1px solid rgba(255, 255, 255, 0.2) !important; border-radius: 30px; padding: 12px 20px; color: white !important; }
+
+        .sidebar-header { display: flex; align-items: center; justify-content: space-between; }
+        
+        .typing::after { content: " |"; animation: blink 0.7s infinite; }
+        @keyframes blink { 50% { opacity: 0; } }
+    </style>
+</head>
+<body class="text-white">
+
+<div class="container-fluid p-0">
+    <div class="row g-0">
+        
+        <div class="col-md-3 chat-sidebar">
+            <div class="sidebar-header mb-4">
+                <h5 class="m-0">💬 Conversations</h5>
+                <a href="/dashboard" class="btn btn-sm btn-outline-info rounded-pill">Dashboard</a>
+            </div>
+            
+            <a href="/ask_ai?new_chat=true" class="btn btn-outline-light w-100 mb-4 rounded-pill">+ New Chat</a>
+
+            <div class="chat-list">
+                {% for chat in chats %}
+                <div class="history-item {% if active_chat and chat.id == active_chat.id %}active-chat{% endif %}">
+                    <a href="/ask_ai?chat_id={{ chat.id }}" class="chat-title text-white text-decoration-none">
+                        {{ chat.title }}
+                    </a>
+                    <span class="del-btn" onclick="confirmDelete('{{ chat.id }}')">🗑️</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="col-md-9 chat-area">
+            <div class="messages-container d-flex flex-column" id="chatWindow">
+                {% if active_chat %}
+                    {% for msg in active_chat.messages %}
+                        <div class="{% if msg.role == 'user' %}chat-user{% else %}chat-ai {% if loop.last %}typewriter-target{% endif %}{% endif %}">
+                            {{ msg.content }}
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            </div>
+
+            <div class="input-area">
+                <form method="POST" action="/ask_ai" class="container" autocomplete="off">
+                    <div class="input-group">
+                        <input type="text" 
+                               name="question" 
+                               class="form-control glass-input" 
+                               placeholder="Type your question..." 
+                               required 
+                               autocomplete="off">
+                        <button type="submit" class="btn btn-primary rounded-pill px-4 ms-2">Ask Gemini</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+    function confirmDelete(chatId) {
+        Swal.fire({
+            title: 'Delete Chat?',
+            text: "This cannot be undone!",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#0d6efd',
+            cancelButtonColor: '#343a40',
+            confirmButtonText: 'Yes, delete it!',
+            background: '#1e2a3a',
+            color: '#fff'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                window.location.href = "/delete_chat/" + chatId;
+            }
+        })
+    }
+
+    function typeWriter(element) {
+        const text = element.innerText;
+        element.innerText = '';
+        element.classList.add('typing');
+        let i = 0;
+        const speed = 12; 
+
+        function typing() {
+            if (i < text.length) {
+                element.innerHTML += text.charAt(i);
+                i++;
+                setTimeout(typing, speed);
+                var objDiv = document.getElementById("chatWindow");
+                objDiv.scrollTop = objDiv.scrollHeight;
+            } else {
+                element.classList.remove('typing');
+            }
+        }
+        typing();
+    }
+
+    window.onload = function() {
+        var objDiv = document.getElementById("chatWindow");
+        objDiv.scrollTop = objDiv.scrollHeight;
+
+        const lastAiMsg = document.querySelector('.typewriter-target');
+        if (lastAiMsg) {
+            typeWriter(lastAiMsg);
+        }
+    };
+</script>
+
+</body>
+</html>

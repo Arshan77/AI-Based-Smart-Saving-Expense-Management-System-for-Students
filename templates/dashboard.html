@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Dashboard</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+</head>
+
+<body>
+
+<nav class="navbar navbar-expand-lg navbar-dark navbar-custom shadow-sm">
+    <div class="container">
+
+        <a class="navbar-brand fw-bold" href="#">
+            💰 AI Smart Saving
+        </a>
+
+        <div class="ms-auto d-flex align-items-center gap-3">
+
+            {% if user_pic %}
+                <img src="{{ url_for('static', filename='uploads/' + user_pic) }}"
+                     width="40"
+                     height="40"
+                     style="border-radius:50%; object-fit:cover; border:2px solid white;">
+            {% else %}
+                <div style="width:40px;height:40px;border-radius:50%;background:#ffffff33;
+                            display:flex;align-items:center;justify-content:center;
+                            font-weight:bold;color:white;">
+                    {{ name[0] }}
+                </div>
+            {% endif %}
+
+            <span class="text-white fw-light">{{ name }}</span>
+
+            <a href="/profile" class="btn btn-outline-light btn-sm">Profile</a>
+            <a href="/logout" class="btn btn-danger btn-sm">Logout</a>
+
+        </div>
+    </div>
+</nav>
+
+
+<div class="container mt-5 text-white">
+
+    <div class="text-center mb-5">
+        <h2 class="fw-semibold">Welcome back, {{ name }} 👋</h2>
+    </div>
+
+    <div class="row g-4 mb-4">
+
+        <div class="col-md-3">
+            <div class="glass-card text-center p-3">
+                <h6>Total Income</h6>
+                <h2 class="text-success">₹ {{ total_income or 0 }}</h2>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="glass-card text-center p-3">
+                <h6>Total Expense</h6>
+                <h2 class="text-danger">₹ {{ total_expense or 0 }}</h2>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="glass-card text-center p-3">
+                <h6>Balance</h6>
+                <h2>₹ {{ balance or 0 }}</h2>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="glass-card text-center p-3">
+                <h6>Monthly Budget</h6>
+                <h2 class="text-info">₹ {{ monthly_budget or 0 }}</h2>
+                <a href="/set_budget" class="btn btn-outline-light btn-sm mt-2">
+                    Set / Update
+                </a>
+            </div>
+        </div>
+
+    </div>
+
+    <div class="glass-card mb-5 p-4">
+        <h4 class="mb-3">🤖 AI Smart Analysis</h4>
+
+        <p>
+            <strong>Balance Percentage:</strong> {{ balance_percentage|default(0)|round(1) }}%
+        </p>
+
+        <div class="alert alert-{{ ai_color|default('info') }}">
+            {{ ai_message|default('Start adding income and expense to see AI insights.') }}
+        </div>
+    </div>
+
+    <div class="text-center mt-4">
+    <a href="/ask_ai" class="btn btn-glass px-4">
+        <span style="font-size: 1.2rem;">🤖</span> Ask AI Assistant
+    </a>
+</div>
+
+
+   <div class="glass-card mb-5 p-4">
+    <h5 class="mb-4 text-warning">💡 Smart 50-30-20 Recommendation</h5>
+
+    <div class="row text-center">
+
+        <div class="col-md-4 mb-3">
+            <div class="recommend-box p-4">
+                <h6>Needs (50%)</h6>
+                <h4>₹ {{ recommended_needs }}</h4>
+            </div>
+        </div>
+
+        <div class="col-md-4 mb-3">
+            <div class="recommend-box p-4">
+                <h6>Wants (30%)</h6>
+                <h4>₹ {{ recommended_wants }}</h4>
+            </div>
+        </div>
+
+        <div class="col-md-4 mb-3">
+            <div class="recommend-box p-4">
+                <h6>Savings (20%)</h6>
+                <h4>₹ {{ recommended_savings }}</h4>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+
+    <div class="glass-card mb-5 p-4">
+        <h5 class="mb-3">📊 Your Actual Savings</h5>
+
+        <h3>₹ {{ actual_savings }}</h3>
+
+        <div class="alert alert-{{ savings_compare_color|default('info') }} mt-3">
+            {{ savings_compare_msg|default('Start adding income to activate AI comparison.') }}
+        </div>
+    </div>
+
+    <div class="glass-card mb-5 p-4">
+        <h4 class="text-center mb-4">Income vs Expense vs Savings 📊</h4>
+        <canvas id="financeChart"></canvas>
+    </div>
+
+
+
+    <div class="text-center mb-5 mt-4">
+        <a href="/add_income" class="btn btn-glass me-3 px-4">➕ Add Income</a>
+        <a href="/add_expense" class="btn btn-glass me-3 px-4">➖ Add Expense</a>
+        <a href="/add_saving" class="btn btn-glass px-4">💰 Add Saving</a>
+    </div>
+
+   <div class="glass-card mb-5 p-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h4>Income History</h4>
+        <a href="/clear_income" class="btn btn-warning btn-sm">Clear Income</a>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-light table-striped">
+            <thead>
+                <tr>
+                    <th>Amount</th>
+                    <th>Source</th>
+                    <th>Date</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for income in incomes %}
+                <tr>
+                    <td>₹ {{ income.amount }}</td>
+                    <td>{{ income.source }}</td>
+                    <td>{{ income.income_date }}</td>
+                    <td>
+                        <button class="btn btn-sm btn-danger"
+                                data-bs-toggle="modal"
+                                data-bs-target="#deleteModal"
+                                onclick="setDeleteUrl('/delete_income/{{ income.id }}')">
+                            🗑
+                        </button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="glass-card mb-5 p-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h4>Expense History</h4>
+        <a href="/clear_expense" class="btn btn-warning btn-sm">Clear Expense</a>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-light table-striped">
+            <thead>
+                <tr>
+                    <th>Amount</th>
+                    <th>Category</th>
+                    <th>Date</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for expense in expenses %}
+                <tr>
+                    <td>₹ {{ expense.amount }}</td>
+                    <td>{{ expense.category }}</td>
+                    <td>{{ expense.expense_date }}</td>
+                    <td>
+                        <button class="btn btn-sm btn-danger"
+                                data-bs-toggle="modal"
+                                data-bs-target="#deleteModal"
+                                onclick="setDeleteUrl('/delete_expense/{{ expense.id }}')">
+                            🗑
+                        </button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="glass-card mb-5 p-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h4 class="text-white">Saving History</h4>
+        <a href="/clear_savings" class="btn btn-warning btn-sm">Clear Savings</a>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-light table-striped">
+            <thead>
+                <tr>
+                    <th>Amount</th>
+                    <th>Date</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for saving in savings %}
+                <tr>
+                    <td>₹ {{ saving.amount }}</td>
+                    <td>{{ saving.saving_date }}</td>
+                    <td>
+                        <button class="btn btn-sm btn-danger"
+                                data-bs-toggle="modal"
+                                data-bs-target="#deleteModal"
+                                onclick="setDeleteUrl('/delete_saving/{{ saving.id }}')">
+                            🗑
+                        </button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content bg-dark text-white">
+            <div class="modal-header border-0">
+                <h5 class="modal-title">Confirm Delete</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body text-center">
+                Are you sure you want to delete this item?
+            </div>
+            <div class="modal-footer border-0 justify-content-center">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <a id="confirmDeleteBtn" href="#" class="btn btn-danger">Yes, Delete</a>
+            </div>
+        </div>
+    </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+    // Fix: We wrap the variables in quotes so VS Code doesn't show errors, 
+    // and cast them to Number for Chart.js.
+    const totalIncome = Number("{{ total_income | default(0) }}");
+    const totalExpense = Number("{{ total_expense | default(0) }}");
+    const actualSavings = Number("{{ actual_savings | default(0) }}");
+
+    const ctx = document.getElementById('financeChart').getContext('2d');
+
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: ['Income', 'Expense', 'Savings'],
+            datasets: [{
+                label: 'Amount (₹)',
+                data: [totalIncome, totalExpense, actualSavings],
+                backgroundColor: [
+                    'rgba(40, 167, 69, 0.7)',
+                    'rgba(220, 53, 69, 0.7)',
+                    'rgba(23, 162, 184, 0.7)'
+                ],
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: { beginAtZero: true }
+            }
+        }
+    });
+
+    function setDeleteUrl(url) {
+        document.getElementById("confirmDeleteBtn").href = url;
+    }
+</script>
+
+</body>
+</html>
