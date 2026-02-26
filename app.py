@@ -44,6 +44,7 @@ if not DATABASE_URL:
 
 conn = psycopg2.connect(DATABASE_URL)
 cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+conn.autocommit = True
 
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS users (
