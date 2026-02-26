@@ -23,7 +23,9 @@ app = Flask(__name__)
 app.secret_key = "supersecretkey"
 
 # Gemini API Setup
-GOOGLE_API_KEY =" AIzaSyABogLBIPoT4uQvR4GgTyup5dDI5XFB9Pc"
+GOOGLE_API_KEY ="AIzaSyABogLBIPoT4uQvR4GgTyup5dDI5XFB9Pc"
+GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY")
+genai.configure(api_key=GOOGLE_API_KEY)
 
 # Upload folder setup
 app.config["UPLOAD_FOLDER"] = "static/uploads"
@@ -33,12 +35,15 @@ bcrypt = Bcrypt(app)
 
 # Database Connection
 import psycopg2
-import os
+import psycopg2.extras
 
 DATABASE_URL = os.environ.get("DATABASE_URL")
 
+if not DATABASE_URL:
+    raise RuntimeError("DATABASE_URL is not set")
+
 conn = psycopg2.connect(DATABASE_URL)
-cursor = conn.cursor()
+cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
 # Dictionary cursor allows accessing rows by column nam
 
@@ -439,8 +444,9 @@ def set_budget():
 
 @app.route('/ask_ai', methods=['GET', 'POST'])
 def ask_ai():
-    if "user_id" not in session: return redirect("/login")
-    
+    if "user_id" not in session:
+        return redirect("/login")
+
     if "chats" not in session:
         session["chats"] = []
     if "active_chat_id" not in session:
@@ -466,34 +472,32 @@ def ask_ai():
 
     if request.method == 'POST':
         question = request.form.get('question')
-        active_chat = next((chat for chat in session["chats"] if chat["id"] == session["active_chat_id"]), None)
-        
+        active_chat = next((chat for chat in session["chats"]
+                            if chat["id"] == session["active_chat_id"]), None)
+
         if active_chat and question:
             active_chat["messages"].append({"role": "user", "content": question})
-    try:
-        model = genai.GenerativeModel("gemini-2.5-flash")
-        response = model.generate_content(question)
-        ai_answer = response.text
-    except Exception as e:
-        ai_answer = f"Error: {str(e)}"
-       
-            
-    active_chat["messages"].append({"role": "ai", "content": ai_answer})
-    if len(active_chat["messages"]) <= 2:
+
+            try:
+                model = genai.GenerativeModel("gemini-2.5-flash")
+                response = model.generate_content(question)
+                ai_answer = response.text
+            except Exception as e:
+                ai_answer = f"Error: {str(e)}"
+
+            active_chat["messages"].append({"role": "ai", "content": ai_answer})
+
+            if len(active_chat["messages"]) <= 2:
                 active_chat["title"] = question[:30]
-                session.modified = True
 
-    current_active_chat = next((chat for chat in session["chats"] if chat["id"] == session["active_chat_id"]), None)
-    return render_template('ask_ai.html', chats=session["chats"], active_chat=current_active_chat)
+            session.modified = True
 
-@app.route('/delete_chat/<chat_id>')
-def delete_chat(chat_id):
-    if "chats" in session:
-        session["chats"] = [c for c in session["chats"] if c["id"] != chat_id]
-        if session.get("active_chat_id") == chat_id:
-            session["active_chat_id"] = None
-        session.modified = True
-    return redirect(url_for('ask_ai'))
+    current_active_chat = next((chat for chat in session["chats"]
+                                if chat["id"] == session["active_chat_id"]), None)
+
+    return render_template('ask_ai.html',
+                           chats=session["chats"],
+                           active_chat=current_active_chat)
 
 # =================================================
 # MAIN ENTRY POINT
