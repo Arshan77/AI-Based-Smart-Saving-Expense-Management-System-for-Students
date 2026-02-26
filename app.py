@@ -123,8 +123,13 @@ def register():
         email = request.form["email"]
         password = request.form["password"]
 
-        cursor.execute("SELECT * FROM users WHERE email = %s", (email,))
-        existing_user = cursor.fetchone()
+    try:
+         cursor.execute("SELECT * FROM users WHERE email = %s", (email,))
+         existing_user = cursor.fetchone()
+    except Exception as e:
+        conn.rollback()
+        print("REGISTER ERROR:", e)
+        raise
 
         if existing_user:
             flash("User already exists with this email. Please login.", "danger")
@@ -160,8 +165,13 @@ def login():
         email = request.form["email"]
         password = request.form["password"]
 
+    try:
         cursor.execute("SELECT * FROM users WHERE email = %s", (email,))
         user = cursor.fetchone()
+    except Exception as e:
+        conn.rollback()
+        print("LOGIN ERROR:", e)
+        raise
 
         if user and bcrypt.check_password_hash(user["password"], password):
             session["user_id"] = user["id"]
