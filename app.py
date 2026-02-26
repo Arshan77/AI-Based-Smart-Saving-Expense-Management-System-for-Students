@@ -45,6 +45,57 @@ if not DATABASE_URL:
 conn = psycopg2.connect(DATABASE_URL)
 cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS users (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100),
+    email VARCHAR(100) UNIQUE,
+    password TEXT,
+    profile_pic TEXT
+);
+""")
+
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS income (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    amount NUMERIC,
+    source VARCHAR(100),
+    income_date DATE
+);
+""")
+
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS expense (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    amount NUMERIC,
+    category VARCHAR(100),
+    expense_date DATE
+);
+""")
+
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS savings (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    amount NUMERIC,
+    saving_date DATE
+);
+""")
+
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS budget (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    monthly_budget NUMERIC,
+    month VARCHAR(20),
+    year INTEGER
+);
+""")
+
+conn.commit()
+
 # Dictionary cursor allows accessing rows by column nam
 
 # ============================================================
