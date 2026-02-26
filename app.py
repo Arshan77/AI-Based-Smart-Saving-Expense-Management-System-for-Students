@@ -23,8 +23,7 @@ app = Flask(__name__)
 app.secret_key = "supersecretkey"
 
 # Gemini API Setup
-API_KEY = "AIzaSyABogLBIPoT4uQvR4GgTyup5dDI5XFB9Pc"
-client = genai.Client(api_key=API_KEY)
+GOOGLE_API_KEY =" AIzaSyABogLBIPoT4uQvR4GgTyup5dDI5XFB9Pc"
 
 # Upload folder setup
 app.config["UPLOAD_FOLDER"] = "static/uploads"
@@ -471,16 +470,18 @@ def ask_ai():
         
         if active_chat and question:
             active_chat["messages"].append({"role": "user", "content": question})
-            try:
-                response = client.models.generate_content(model="gemini-2.5-flash", contents=question)
-                ai_answer = response.text
-            except Exception as e:
-                ai_answer = f"Error: {str(e)}"
+    try:
+        model = genai.GenerativeModel("gemini-2.5-flash")
+        response = model.generate_content(question)
+        ai_answer = response.text
+    except Exception as e:
+        ai_answer = f"Error: {str(e)}"
+       
             
-            active_chat["messages"].append({"role": "ai", "content": ai_answer})
-            if len(active_chat["messages"]) <= 2:
+    active_chat["messages"].append({"role": "ai", "content": ai_answer})
+    if len(active_chat["messages"]) <= 2:
                 active_chat["title"] = question[:30]
-            session.modified = True
+                session.modified = True
 
     current_active_chat = next((chat for chat in session["chats"] if chat["id"] == session["active_chat_id"]), None)
     return render_template('ask_ai.html', chats=session["chats"], active_chat=current_active_chat)
